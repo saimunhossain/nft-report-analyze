@@ -2,6 +2,7 @@ package modules
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"log"
 	"bytes"
@@ -9,7 +10,7 @@ import (
 	"net/http"
 	"math/big"
 	"encoding/json"
-	"crypto/ecdsa"
+
 	Models "github.com/saimunhossain/nft-report-analyze/models"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -57,7 +58,7 @@ func GetLatestBlock(client ethclient.Client) *Models.Block {
 			Gas:         tx.Gas(),
 			GasPrice: 	 tx.GasPrice().Uint64(),
 			Nonce:    	 tx.Nonce(),
-			Date: "20220829,00:23:41",
+			Date: 		 block.Time(),
 			CollectionName: "Otherdeed for Otherside",
 			CollectionAddress: tx.To().Hex(),
 		})
@@ -68,7 +69,10 @@ func GetLatestBlock(client ethclient.Client) *Models.Block {
 
 // GetTxByHash by a given hash
 func GetTxByHash(client ethclient.Client, hash common.Hash) *Models.Transaction {
-
+	// Query the latest block
+	header, _ := client.HeaderByNumber(context.Background(), nil)
+	blockNumber := big.NewInt(header.Number.Int64())
+	block, err := client.BlockByNumber(context.Background(), blockNumber)
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println(err)
@@ -90,7 +94,7 @@ func GetTxByHash(client ethclient.Client, hash common.Hash) *Models.Transaction 
 		Gas:         tx.Gas(),
 		GasPrice: 	 tx.GasPrice().Uint64(),
 		Nonce:    	 tx.Nonce(),
-		Date: 		 "20220829,00:23:41",
+		Date: 		 block.Time(),
 		CollectionName: "Otherdeed for Otherside",
 		CollectionAddress: tx.To().Hex(),
 		Pending: pending,
@@ -99,7 +103,11 @@ func GetTxByHash(client ethclient.Client, hash common.Hash) *Models.Transaction 
 
 // StoreTxByHash by a given hash
 func StoreTxByHash(client ethclient.Client, hash common.Hash) *Models.Transaction {
-
+	// Query the latest block
+	header, _ := client.HeaderByNumber(context.Background(), nil)
+	blockNumber := big.NewInt(header.Number.Int64())
+	block, err := client.BlockByNumber(context.Background(), blockNumber)
+	
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println(err)
@@ -121,7 +129,7 @@ func StoreTxByHash(client ethclient.Client, hash common.Hash) *Models.Transactio
 		Gas:         tx.Gas(),
 		GasPrice: 	 tx.GasPrice().Uint64(),
 		Nonce:    	 tx.Nonce(),
-		Date: 		 "20220829,00:23:41",
+		Date: 		 block.Time(),
 		CollectionName: "Otherdeed for Otherside",
 		CollectionAddress: tx.To().Hex(),
 		Pending: pending,
@@ -189,17 +197,6 @@ func StoreTxByHash(client ethclient.Client, hash common.Hash) *Models.Transactio
 	return nil
 }
 
-// GetAddressBalance returns the given address balance =P
-func GetAddressBalance(client ethclient.Client, address string) (string, error) {
-	account := common.HexToAddress(address)
-	balance, err := client.BalanceAt(context.Background(), account, nil)
-	if err != nil {
-		return "0", err
-	}
-
-	return balance.String(), nil
-}
-
 // TransferEth from one account to another
 func TransferEth(client ethclient.Client, privKey string, to string, amount int64) (string, error) {
 
@@ -263,4 +260,15 @@ func TransferEth(client ethclient.Client, privKey string, to string, amount int6
 
 	// We return the transaction hash
 	return signedTx.Hash().String(), nil
+}
+
+// GetAddressBalance returns the given address balance =P
+func GetAddressBalance(client ethclient.Client, address string) (string, error) {
+	account := common.HexToAddress(address)
+	balance, err := client.BalanceAt(context.Background(), account, nil)
+	if err != nil {
+		return "0", err
+	}
+
+	return balance.String(), nil
 }

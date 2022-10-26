@@ -23,7 +23,7 @@ type Transaction struct {
 	To        string `json:"to"`
 	From 	  string `json:"from"`
 	Pending   bool   `json:"pending"`
-	Date 	  string `json:"date"`
+	Date 	  uint64 `json:"date"`
 
 	CollectionName string `json:"collection_name"`
 	CollectionAddress string `json:"collection_address"`

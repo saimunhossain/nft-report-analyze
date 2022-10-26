@@ -100,6 +100,7 @@ func (client ClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Symbol:  "Ether",
 			Units:   "Wei",
 		})
+
 	case "send-eth":
 		decoder := json.NewDecoder(r.Body)
 		var t Models.TransferEthRequest
@@ -110,7 +111,7 @@ func (client ClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fmt.Println(err)
 			json.NewEncoder(w).Encode(&Models.Error{
 				Code:    400,
-				Message: "Malformed request",
+				Message: "Empty request",
 			})
 			return
 		}
