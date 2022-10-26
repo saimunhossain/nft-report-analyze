@@ -10,7 +10,7 @@ import (
 	"math/big"
 	"encoding/json"
 
-	Models "github.com/LuisAcerv/goeth-api/models"
+	Models "github.com/saimunhossain/nft-report-analyze/models"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
@@ -125,7 +125,7 @@ func StoreTxByHash(client ethclient.Client, hash common.Hash) *Models.Transactio
 		Pending: pending,
 	}
 	responseJson, _ := json.Marshal(nftActions)
-	
+
 	resp, err := http.Get("http://dataworks.gw106.oneitfarm.com/v1/project/blockchain_analytics/new_upload_data_url?table_name=ods_nft")
 
 	if err != nil {

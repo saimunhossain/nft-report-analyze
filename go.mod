@@ -1,4 +1,4 @@
-module github.com/LuisAcerv/goeth-api
+module github.com/saimunhossain/nft-report-analyze
 
 go 1.13
 

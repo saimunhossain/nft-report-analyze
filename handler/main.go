@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	Models "github.com/LuisAcerv/goeth-api/models"
-	Modules "github.com/LuisAcerv/goeth-api/modules"
+	Models "github.com/saimunhossain/nft-report-analyze/models"
+	Modules "github.com/saimunhossain/nft-report-analyze/modules"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gorilla/mux"
