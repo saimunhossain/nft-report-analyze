@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"fmt"
 
 	Models "github.com/saimunhossain/nft-report-analyze/models"
 	Modules "github.com/saimunhossain/nft-report-analyze/modules"
@@ -71,6 +72,36 @@ func (client ClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(&Models.Error{
 			Code:    200,
 			Message: "Tx stored successfully!",
+		})
+
+
+	case "send-eth":
+		decoder := json.NewDecoder(r.Body)
+		var t Models.TransferEthRequest
+
+		err := decoder.Decode(&t)
+
+		if err != nil {
+			fmt.Println(err)
+			json.NewEncoder(w).Encode(&Models.Error{
+				Code:    400,
+				Message: "Malformed request",
+			})
+			return
+		}
+		_hash, err := Modules.TransferEth(*client.Client, t.PrivKey, t.To, t.Amount)
+
+		if err != nil {
+			fmt.Println(err)
+			json.NewEncoder(w).Encode(&Models.Error{
+				Code:    500,
+				Message: "Internal server error",
+			})
+			return
+		}
+
+		json.NewEncoder(w).Encode(&Models.HashResponse{
+			Hash: _hash,
 		})
 	}
 

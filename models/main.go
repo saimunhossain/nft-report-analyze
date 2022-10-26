@@ -28,6 +28,18 @@ type Transaction struct {
 	CollectionName string `json:"collection_name"`
 	CollectionAddress string `json:"collection_address"`
 }
+
+// TransferEthRequest data str	ucture
+type TransferEthRequest struct {
+	PrivKey string `json:"privKey"`
+	To      string `json:"to"`
+	Amount  int64  `json:"amount"`
+}
+
+// HashResponse data structure
+type HashResponse struct {
+	Hash string `json:"hash"`
+}
 // Error data structure
 type Error struct {
 	Code    uint64 `json:"code"`

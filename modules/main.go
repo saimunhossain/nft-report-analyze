@@ -9,9 +9,11 @@ import (
 	"net/http"
 	"math/big"
 	"encoding/json"
-
+	"crypto/ecdsa"
 	Models "github.com/saimunhossain/nft-report-analyze/models"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -185,4 +187,69 @@ func StoreTxByHash(client ethclient.Client, hash common.Hash) *Models.Transactio
 		fmt.Println("There is something wrong, Please try later!")
 	}
 	return nil
+}
+
+// TransferEth from one account to another
+func TransferEth(client ethclient.Client, privKey string, to string, amount int64) (string, error) {
+
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+		}
+	}()
+
+	// Assuming you've already connected a client, the next step is to load your private key.
+	privateKey, err := crypto.HexToECDSA(privKey)
+	if err != nil {
+		return "", err
+	}
+
+	// Function requires the public address of the account we're sending from -- which we can derive from the private key.
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return "", err
+	}
+
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+
+	// Now we can read the nonce that we should use for the account's transaction.
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		return "", err
+	}
+
+	value := big.NewInt(amount) // in wei (1 eth)
+	gasLimit := uint64(21000)   // in units
+	gasPrice, err := client.SuggestGasPrice(context.Background())
+	if err != nil {
+		return "", err
+	}
+
+	// We figure out who we're sending the ETH to.
+	toAddress := common.HexToAddress(to)
+	var data []byte
+
+	// We create the transaction payload
+	tx := types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, data)
+
+	chainID, err := client.NetworkID(context.Background())
+	if err != nil {
+		return "", err
+	}
+
+	// We sign the transaction using the sender's private key
+	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+	if err != nil {
+		return "", err
+	}
+
+	// Now we are finally ready to broadcast the transaction to the entire network
+	err = client.SendTransaction(context.Background(), signedTx)
+	if err != nil {
+		return "", err
+	}
+
+	// We return the transaction hash
+	return signedTx.Hash().String(), nil
 }
