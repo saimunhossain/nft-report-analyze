@@ -3,7 +3,10 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+
+	Models "github.com/LuisAcerv/goeth-api/models"
 	Modules "github.com/LuisAcerv/goeth-api/modules"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gorilla/mux"
 )
@@ -17,6 +20,8 @@ func (client ClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Get parameter from url request
 	vars := mux.Vars(r)
 	module := vars["module"]
+
+	hash := r.URL.Query().Get("hash")
 	// Set our response header
 	w.Header().Set("Content-Type", "application/json")
 
@@ -25,6 +30,27 @@ func (client ClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "get-latest-block":
 		_block := Modules.GetLatestBlock(*client.Client)
 		json.NewEncoder(w).Encode(_block)
+
+	case "get-tx":
+		if hash == "" {
+			json.NewEncoder(w).Encode(&Models.Error{
+				Code:    400,
+				Message: "Empty request",
+			})
+			return
+		}
+		txHash := common.HexToHash(hash)
+		_tx := Modules.GetTxByHash(*client.Client, txHash)
+
+		if _tx != nil {
+			json.NewEncoder(w).Encode(_tx)
+			return
+		}
+
+		json.NewEncoder(w).Encode(&Models.Error{
+			Code:    404,
+			Message: "Tx Not Found!",
+		})
 	}
 
 }

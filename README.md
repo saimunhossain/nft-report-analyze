@@ -15,4 +15,6 @@ To get started, make sure you have to clone this repository.
 
 ### Head over to our browser
 
-1. **To see latest block with transaction** `http://localhost:9000/api/v1/get-latest-block`
+1. **To see latest block with transaction** `http://localhost:7000/api/v1/get-latest-block`
+
+2. **To see specific transaction** `http://localhost:7000/api/v1/get-tx?hash={Press Your Transaction Hash}`

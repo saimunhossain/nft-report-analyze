@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	Models "github.com/LuisAcerv/goeth-api/models"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -57,4 +58,35 @@ func GetLatestBlock(client ethclient.Client) *Models.Block {
 	}
 
 	return _block
+}
+
+// GetTxByHash by a given hash
+func GetTxByHash(client ethclient.Client, hash common.Hash) *Models.Transaction {
+
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+		}
+	}()
+
+	tx, pending, err := client.TransactionByHash(context.Background(), hash)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return &Models.Transaction{
+		Hash:     	 tx.Hash().String(),
+		Type: 	  	 "mint",
+		Address:  	 tx.To().String(),
+		BlockHash:   tx.Hash().Hex(),
+		To:       	 tx.To().String(),
+		From: 		 tx.Hash().Hex(),
+		Gas:         tx.Gas(),
+		GasPrice: 	 tx.GasPrice().Uint64(),
+		Nonce:    	 tx.Nonce(),
+		Date: 		 "20220829,00:23:41",
+		CollectionName: "Otherdeed for Otherside",
+		CollectionAddress: tx.To().Hex(),
+		Pending: pending,
+	}
 }
