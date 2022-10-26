@@ -189,6 +189,17 @@ func StoreTxByHash(client ethclient.Client, hash common.Hash) *Models.Transactio
 	return nil
 }
 
+// GetAddressBalance returns the given address balance =P
+func GetAddressBalance(client ethclient.Client, address string) (string, error) {
+	account := common.HexToAddress(address)
+	balance, err := client.BalanceAt(context.Background(), account, nil)
+	if err != nil {
+		return "0", err
+	}
+
+	return balance.String(), nil
+}
+
 // TransferEth from one account to another
 func TransferEth(client ethclient.Client, privKey string, to string, amount int64) (string, error) {
 

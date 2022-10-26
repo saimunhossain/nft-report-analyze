@@ -29,6 +29,14 @@ type Transaction struct {
 	CollectionAddress string `json:"collection_address"`
 }
 
+// BalanceResponse data structure
+type BalanceResponse struct {
+	Address string `json:"address"`
+	Balance string `json:"balance"`
+	Symbol  string `json:"symbol"`
+	Units   string `json:"units"`
+}
+
 // TransferEthRequest data str	ucture
 type TransferEthRequest struct {
 	PrivKey string `json:"privKey"`
@@ -40,6 +48,7 @@ type TransferEthRequest struct {
 type HashResponse struct {
 	Hash string `json:"hash"`
 }
+
 // Error data structure
 type Error struct {
 	Code    uint64 `json:"code"`

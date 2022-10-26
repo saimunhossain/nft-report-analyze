@@ -21,7 +21,7 @@ func (client ClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Get parameter from url request
 	vars := mux.Vars(r)
 	module := vars["module"]
-
+	address := r.URL.Query().Get("address")
 	hash := r.URL.Query().Get("hash")
 	// Set our response header
 	w.Header().Set("Content-Type", "application/json")
@@ -74,7 +74,32 @@ func (client ClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Message: "Tx stored successfully!",
 		})
 
+	case "get-balance":
+		if address == "" {
+			json.NewEncoder(w).Encode(&Models.Error{
+				Code:    400,
+				Message: "Malformed request",
+			})
+			return
+		}
 
+		balance, err := Modules.GetAddressBalance(*client.Client, address)
+
+		if err != nil {
+			fmt.Println(err)
+			json.NewEncoder(w).Encode(&Models.Error{
+				Code:    500,
+				Message: "Internal server error",
+			})
+			return
+		}
+
+		json.NewEncoder(w).Encode(&Models.BalanceResponse{
+			Address: address,
+			Balance: balance,
+			Symbol:  "Ether",
+			Units:   "Wei",
+		})
 	case "send-eth":
 		decoder := json.NewDecoder(r.Body)
 		var t Models.TransferEthRequest
