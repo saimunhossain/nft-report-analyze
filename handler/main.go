@@ -51,6 +51,27 @@ func (client ClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Code:    404,
 			Message: "Tx Not Found!",
 		})
+
+	case "store-tx":
+		if hash == "" {
+			json.NewEncoder(w).Encode(&Models.Error{
+				Code:    400,
+				Message: "Empty request",
+			})
+			return
+		}
+		txHash := common.HexToHash(hash)
+		_tx := Modules.StoreTxByHash(*client.Client, txHash)
+
+		if _tx != nil {
+			json.NewEncoder(w).Encode(_tx)
+			return
+		}
+
+		json.NewEncoder(w).Encode(&Models.Error{
+			Code:    200,
+			Message: "Tx stored successfully!",
+		})
 	}
 
 }
