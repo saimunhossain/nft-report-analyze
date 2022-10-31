@@ -23,4 +23,13 @@ To get started, make sure you have to clone this repository.
 
 4. **To see address balance** `http://localhost:7000/api/v1/get-balance?address={Press Your Address Hash}`
 
+To generate ABI and bin:
+
+   ```sh
+   solc --bin --abi erc721.sol -o build
+   ```
+   ```sh
+   abigen --abi=./build/ERC721.abi --pkg=erc721 --out=erc721.go
+   ```
+
 5. **To Transfer Ethereum one to another** `http://localhost:7000/api/v1/send-eth?privKey={Press Your private key}to={Press To Address}amount={Press Amount}`

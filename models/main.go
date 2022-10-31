@@ -1,5 +1,8 @@
 package models
-
+import (
+	"math/big"
+	"github.com/ethereum/go-ethereum/common"
+)
 // Block data structure
 type Block struct {
 	BlockNumber       int64         `json:"blockNumber"`
@@ -53,4 +56,11 @@ type HashResponse struct {
 type Error struct {
 	Code    uint64 `json:"code"`
 	Message string `json:"message"`
+}
+
+// LogTransfer ..
+type LogTransfer struct {
+    From   common.Address
+    To     common.Address
+    Tokens *big.Int
 }
