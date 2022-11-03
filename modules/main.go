@@ -10,16 +10,15 @@ import (
 	"net/http"
 	"math/big"
 	"encoding/json"
-	"strings"
+	"time"
 
-	token "./erc721"
-	"github.com/ethereum/go-ethereum"
+	// token "./erc721"
 	Models "github.com/saimunhossain/nft-report-analyze/models"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	// "github.com/ethereum/go-ethereum/accounts/abi"
 )
 // LogTransfer ..
 type LogTransfer struct {
@@ -39,8 +38,8 @@ func GetLatestBlock(client ethclient.Client) *Models.Block {
 
 	// Query the latest block
 	header, _ := client.HeaderByNumber(context.Background(), nil)
-	blockNumber := big.NewInt(header.Number.Int64())
-	block, err := client.BlockByNumber(context.Background(), blockNumber)
+	blockNumber := header.Number.Int64()
+	block, err := client.BlockByNumber(context.Background(), big.NewInt(blockNumber))
 
 	if err != nil {
 		log.Fatal(err)
@@ -55,138 +54,262 @@ func GetLatestBlock(client ethclient.Client) *Models.Block {
 		TransactionsCount: len(block.Transactions()),
 		Transactions:      []Models.Transaction{},
 	}
-
 	for _, tx := range block.Transactions() {
-		receipt, err := client.TransactionReceipt(context.Background(), tx.Hash())
+		tm := time.Unix(int64(block.Time()), 0)
+		_block.Transactions = append(_block.Transactions, Models.Transaction{
+			Hash:     	 tx.Hash().String(),
+			Type:     	 "mint",
+			Address:  	 tx.To().String(),
+			BlockHash:   tx.Hash().Hex(),
+			BlockNumber: block.Number().Int64(),
+			To:       	 tx.To().String(),
+			From: 		 tx.Hash().Hex(),
+			Gas:         tx.Gas(),
+			GasPrice: 	 tx.GasPrice().Uint64(),
+			Nonce:    	 tx.Nonce(),
+			Date: 		 tm.String(),
+			CollectionName: "Otherdeed for Otherside",
+			CollectionAddress: tx.To().Hex(),
+		})
+		// responseJson, _ := json.Marshal(_block.Transactions)
+		// var jsonStr = string(responseJson)
+		// fmt.Println(string(jsonStr))
+
+		type DataStruct struct {
+			Data  []Models.Transaction `json:"data"`
+		}
+		
+		transactionsData := _block.Transactions
+		resultData := DataStruct{transactionsData}
+		responseJsonData, _ := json.Marshal(resultData)
+		var resultDataStr = string(responseJsonData)
+		//fmt.Println(resultDataStr)
+	
+		postData := []byte(resultDataStr)
+		
+		resp, err := http.Get("http://dataworks.gw106.oneitfarm.com/v1/project/blockchain_analytics/new_upload_data_url?table_name=ods_nft")
+
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		 contractAddress := common.HexToAddress(tx.To().String())
-		 query := ethereum.FilterQuery{
-			 Addresses: []common.Address{
-				 contractAddress,
-			 },
-		 }
-	 
-		 logs, err := client.FilterLogs(context.Background(), query)
-		 if err != nil {
-			 log.Fatal(err)
-		 }
-	 
-		 contractAbi, err := abi.JSON(strings.NewReader(string(token.Erc721ABI)))
-		 if err != nil {
-			 log.Fatal(err)
-		 }
-	 
-		 logTransferSig := []byte("Transfer(address,address,uint256)")
-		 logTransferSigHash := crypto.Keccak256Hash(logTransferSig)
-	 
-		 for _, vLog := range logs {
-			 fmt.Printf("Log Block Number: %d\n", vLog.BlockNumber)
-			 fmt.Printf("Log Index: %d\n", vLog.Index)
-	 
-			 switch vLog.Topics[0].Hex() {
-			 case logTransferSigHash.Hex():
-					fmt.Printf("Log Name: Transfer\n")
-		
-					var transferEvent LogTransfer
-		
-					err := contractAbi.Unpack(&transferEvent, "Transfer", vLog.Data)
-					if err != nil {
-						log.Fatal(err)
-					}
-		
-					transferEvent.From = common.HexToAddress(vLog.Topics[1].Hex())
-					transferEvent.To = common.HexToAddress(vLog.Topics[2].Hex())
-		
-					fmt.Printf("From: %s\n", transferEvent.From.Hex())
-					fmt.Printf("To: %s\n", transferEvent.To.Hex())
-					fmt.Printf("Tokens: %s\n", transferEvent.Tokens.String())
+		defer resp.Body.Close()
 
-					nftActions := &Models.Transaction{
-					// _block.Transactions = append(_block.Transactions, Models.Transaction{
-						Hash:     	 tx.Hash().String(),
-						// Type: 	  	 "mint",
-						Address:  	 vLog.BlockHash.Hex(),
-						BlockHash:   receipt.TxHash.String(),
-						BlockNumber: block.Number().Int64(),
-						To:       	 transferEvent.To.Hex(),
-						From: 		 transferEvent.From.Hex(),
-						Gas:         tx.Gas(),
-						GasPrice: 	 tx.GasPrice().Uint64(),
-						Nonce:    	 tx.Nonce(),
-						Date: 		 block.Time(),
-						// CollectionName: "Otherdeed for Otherside",
-						CollectionAddress: tx.To().Hex(),
-					}
-					responseJson, _ := json.Marshal(nftActions)
-					resp, err := http.Get("http://dataworks.gw106.oneitfarm.com/v1/project/blockchain_analytics/new_upload_data_url?table_name=ods_nft")
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					defer resp.Body.Close()
-
-					body, err := ioutil.ReadAll(resp.Body)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					type Data struct {
-						Url string `json:"url"`
-						Token string `json:"token"`
-						RawUrl string `json:"raw_url"`
-					}
-					type Result struct {
-						State string `json:"state"`
-						Msg string `json:"msg"`
-						ResData Data `json:"data"`
-					}
-					var result Result
-					json.Unmarshal(body, &result)
-					// fmt.Println(result.ResData.Token)
+		type Data struct {
+			Url string `json:"url"`
+			Token string `json:"token"`
+			RawUrl string `json:"raw_url"`
+		}
+		type Result struct {
+			State string `json:"state"`
+			Msg string `json:"msg"`
+			ResData Data `json:"data"`
+		}
+		var result Result
+		json.Unmarshal(body, &result)
+		// fmt.Println(result.ResData.Url)
+		// fmt.Println(result.ResData.Token)
+		// fmt.Println(result.ResData.RawUrl)
 
 
-					url := "http://dataworks.gw106.oneitfarm.com/"+result.ResData.RawUrl
-					var bearer = "Bearer " + result.ResData.Token
-					req, err := http.NewRequest("POST", url, bytes.NewBuffer(responseJson))
+		url := "http://dataworks.gw106.oneitfarm.com/"+result.ResData.RawUrl
+		var bearer = "Bearer " + result.ResData.Token
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer(postData))
 
-					req.Header.Add("Authorization", bearer)
-					req.Header.Set("Content-Type", "application/json")
+		req.Header.Add("Authorization", bearer)
+		req.Header.Set("Content-Type", "application/json")
 
-					httpClient := &http.Client{}
-					respHttp, err := httpClient.Do(req)
-					if err != nil {
-						log.Println("Error on response.\n[ERROR] -", err)
-					}
-					defer respHttp.Body.Close()
+		httpClient := &http.Client{}
+		respHttp, err := httpClient.Do(req)
+		if err != nil {
+			log.Println("Error on response.\n[ERROR] -", err)
+		}
+		defer respHttp.Body.Close()
 
-					postBody, err := ioutil.ReadAll(respHttp.Body)
-					if err != nil {
-						log.Println("Error while reading the response bytes:", err)
-					}		
-					type PostResult struct {
-						State string `json:"state"`
-						Msg string `json:"msg"`
-						PostResData string `json:"data"`
-					}
-					var postResult PostResult
-					json.Unmarshal(postBody, &postResult)
-					if postResult.Msg == "ok"{
-						fmt.Println("Data has been sent to server")
-					}else{
-						fmt.Println("There is something wrong, Please try later!")
-					}
-					return nil
-				}
-				fmt.Printf("\n\n")
-			}
+		postBody, err := ioutil.ReadAll(respHttp.Body)
+		if err != nil {
+			log.Println("Error while reading the response bytes:", err)
+		}		
+		type PostResult struct {
+			State string `json:"state"`
+			Msg string `json:"msg"`
+			PostResData string `json:"data"`
+		}
+		var postResult PostResult
+		json.Unmarshal(postBody, &postResult)
+		// fmt.Println(postResult.Msg, postResult.State, postResult.PostResData)
+		if postResult.Msg == "ok"{
+			fmt.Println("Data has been sent to server")
+		}else{
+			fmt.Println("There is something wrong, Please try later!")
+		}
 	}
 
-	// return _block
+	return _block
 }
+// func GetLatestBlock(client ethclient.Client) *Models.Block {
+// 	// We add a recover function from panics to prevent our API from crashing due to an unexpected error
+// 	defer func() {
+// 		if err := recover(); err != nil {
+// 			fmt.Println(err)
+// 		}
+// 	}()
+
+// 	// Query the latest block
+// 	header, _ := client.HeaderByNumber(context.Background(), nil)
+// 	blockNumber := big.NewInt(header.Number.Int64())
+// 	block, err := client.BlockByNumber(context.Background(), blockNumber)
+
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+
+// 	// Build the response to our model
+// 	_block := &Models.Block{
+// 		BlockNumber:       block.Number().Int64(),
+// 		Timestamp:         block.Time(),
+// 		Difficulty:        block.Difficulty().Uint64(),
+// 		Hash:              block.Hash().String(),
+// 		TransactionsCount: len(block.Transactions()),
+// 		Transactions:      []Models.Transaction{},
+// 	}
+
+// 	for _, tx := range block.Transactions() {
+// 		receipt, err := client.TransactionReceipt(context.Background(), tx.Hash())
+// 		if err != nil {
+// 			log.Fatal(err)
+// 		}
+
+// 		 contractAddress := common.HexToAddress(tx.To().String())
+// 		 query := ethereum.FilterQuery{
+// 			 Addresses: []common.Address{
+// 				 contractAddress,
+// 			 },
+// 		 }
+	 
+// 		 logs, err := client.FilterLogs(context.Background(), query)
+// 		 if err != nil {
+// 			 log.Fatal(err)
+// 		 }
+	 
+// 		 contractAbi, err := abi.JSON(strings.NewReader(string(token.Erc721ABI)))
+// 		 if err != nil {
+// 			 log.Fatal(err)
+// 		 }
+	 
+// 		 logTransferSig := []byte("Transfer(address,address,uint256)")
+// 		 logTransferSigHash := crypto.Keccak256Hash(logTransferSig)
+	 
+// 		 for _, vLog := range logs {
+// 			 fmt.Printf("Log Block Number: %d\n", vLog.BlockNumber)
+// 			 fmt.Printf("Log Index: %d\n", vLog.Index)
+	 
+// 			 switch vLog.Topics[0].Hex() {
+// 			 case logTransferSigHash.Hex():
+// 					fmt.Printf("Log Name: Transfer\n")
+		
+// 					var transferEvent LogTransfer
+		
+// 					err := contractAbi.Unpack(&transferEvent, "Transfer", vLog.Data)
+// 					if err != nil {
+// 						log.Fatal(err)
+// 					}
+		
+// 					transferEvent.From = common.HexToAddress(vLog.Topics[1].Hex())
+// 					transferEvent.To = common.HexToAddress(vLog.Topics[2].Hex())
+		
+// 					fmt.Printf("From: %s\n", transferEvent.From.Hex())
+// 					fmt.Printf("To: %s\n", transferEvent.To.Hex())
+// 					fmt.Printf("Tokens: %s\n", transferEvent.Tokens.String())
+
+// 					nftActions := &Models.Transaction{
+// 					// _block.Transactions = append(_block.Transactions, Models.Transaction{
+// 						Hash:     	 tx.Hash().String(),
+// 						// Type: 	  	 "mint",
+// 						Address:  	 vLog.BlockHash.Hex(),
+// 						BlockHash:   receipt.TxHash.String(),
+// 						BlockNumber: block.Number().Int64(),
+// 						To:       	 transferEvent.To.Hex(),
+// 						From: 		 transferEvent.From.Hex(),
+// 						Gas:         tx.Gas(),
+// 						GasPrice: 	 tx.GasPrice().Uint64(),
+// 						Nonce:    	 tx.Nonce(),
+// 						Date: 		 block.Time(),
+// 						// CollectionName: "Otherdeed for Otherside",
+// 						CollectionAddress: tx.To().Hex(),
+// 					}
+// 					responseJson, _ := json.Marshal(nftActions)
+// 					resp, err := http.Get("http://dataworks.gw106.oneitfarm.com/v1/project/blockchain_analytics/new_upload_data_url?table_name=ods_nft")
+
+// 					if err != nil {
+// 						log.Fatal(err)
+// 					}
+
+// 					defer resp.Body.Close()
+
+// 					body, err := ioutil.ReadAll(resp.Body)
+// 					if err != nil {
+// 						log.Fatal(err)
+// 					}
+
+// 					type Data struct {
+// 						Url string `json:"url"`
+// 						Token string `json:"token"`
+// 						RawUrl string `json:"raw_url"`
+// 					}
+// 					type Result struct {
+// 						State string `json:"state"`
+// 						Msg string `json:"msg"`
+// 						ResData Data `json:"data"`
+// 					}
+// 					var result Result
+// 					json.Unmarshal(body, &result)
+// 					// fmt.Println(result.ResData.Token)
+
+
+// 					url := "http://dataworks.gw106.oneitfarm.com/"+result.ResData.RawUrl
+// 					var bearer = "Bearer " + result.ResData.Token
+// 					req, err := http.NewRequest("POST", url, bytes.NewBuffer(responseJson))
+
+// 					req.Header.Add("Authorization", bearer)
+// 					req.Header.Set("Content-Type", "application/json")
+
+// 					httpClient := &http.Client{}
+// 					respHttp, err := httpClient.Do(req)
+// 					if err != nil {
+// 						log.Println("Error on response.\n[ERROR] -", err)
+// 					}
+// 					defer respHttp.Body.Close()
+
+// 					postBody, err := ioutil.ReadAll(respHttp.Body)
+// 					if err != nil {
+// 						log.Println("Error while reading the response bytes:", err)
+// 					}		
+// 					type PostResult struct {
+// 						State string `json:"state"`
+// 						Msg string `json:"msg"`
+// 						PostResData string `json:"data"`
+// 					}
+// 					var postResult PostResult
+// 					json.Unmarshal(postBody, &postResult)
+// 					if postResult.Msg == "ok"{
+// 						fmt.Println("Data has been sent to server")
+// 					}else{
+// 						fmt.Println("There is something wrong, Please try later!")
+// 					}
+// 					return nil
+// 				}
+// 				fmt.Printf("\n\n")
+// 			}
+// 	}
+
+// 	// return _block
+// }
 
 // GetTxByHash by a given hash
 func GetTxByHash(client ethclient.Client, hash common.Hash) *Models.Transaction {
@@ -204,7 +327,7 @@ func GetTxByHash(client ethclient.Client, hash common.Hash) *Models.Transaction 
 	if err != nil {
 		fmt.Println(err)
 	}
-
+	tm := time.Unix(int64(block.Time()), 0)
 	return &Models.Transaction{
 		Hash:     	 tx.Hash().String(),
 		// Type: 	  	 "mint",
@@ -215,7 +338,7 @@ func GetTxByHash(client ethclient.Client, hash common.Hash) *Models.Transaction 
 		Gas:         tx.Gas(),
 		GasPrice: 	 tx.GasPrice().Uint64(),
 		Nonce:    	 tx.Nonce(),
-		Date: 		 block.Time(),
+		Date: 		 tm.String(),
 		// CollectionName: "Otherdeed for Otherside",
 		CollectionAddress: tx.To().Hex(),
 		Pending: pending,
@@ -226,9 +349,10 @@ func GetTxByHash(client ethclient.Client, hash common.Hash) *Models.Transaction 
 func StoreTxByHash(client ethclient.Client, hash common.Hash) *Models.Transaction {
 	// Query the latest block
 	header, _ := client.HeaderByNumber(context.Background(), nil)
-	blockNumber := big.NewInt(header.Number.Int64())
-	block, err := client.BlockByNumber(context.Background(), blockNumber)
-
+	fmt.Println(header.Number.Int64())
+	blockNumber := header.Number.Int64()
+	block, err := client.BlockByNumber(context.Background(), big.NewInt(blockNumber))
+	
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println(err)
@@ -240,23 +364,29 @@ func StoreTxByHash(client ethclient.Client, hash common.Hash) *Models.Transactio
 		fmt.Println(err)
 	}
 
+	tm := time.Unix(int64(block.Time()), 0)
+
 	nftActions := &Models.Transaction{
 		Hash:     	 tx.Hash().String(),
-		// Type: 	  	 "mint",
+		Type: 	  	 "mint",
 		Address:  	 tx.To().String(),
 		BlockHash:   tx.Hash().Hex(),
+		BlockNumber:   header.Number.Int64(),
 		To:       	 tx.To().String(),
 		From: 		 tx.Hash().Hex(),
 		Gas:         tx.Gas(),
 		GasPrice: 	 tx.GasPrice().Uint64(),
 		Nonce:    	 tx.Nonce(),
-		Date: 		 block.Time(),
-		// CollectionName: "Otherdeed for Otherside",
+		Date: 		 tm.String(),
+		CollectionName: "Otherdeed for Otherside",
 		CollectionAddress: tx.To().Hex(),
 		Pending: pending,
 	}
 	responseJson, _ := json.Marshal(nftActions)
-
+	var jsonStr = string(responseJson)
+	fmt.Println(jsonStr)
+	postData := []byte(jsonStr)
+	fmt.Println(postData)
 	resp, err := http.Get("http://dataworks.gw106.oneitfarm.com/v1/project/blockchain_analytics/new_upload_data_url?table_name=ods_nft")
 
 	if err != nil {
@@ -287,7 +417,7 @@ func StoreTxByHash(client ethclient.Client, hash common.Hash) *Models.Transactio
 
 	url := "http://dataworks.gw106.oneitfarm.com/"+result.ResData.RawUrl
 	var bearer = "Bearer " + result.ResData.Token
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(responseJson))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(postData))
 
 	req.Header.Add("Authorization", bearer)
 	req.Header.Set("Content-Type", "application/json")
@@ -315,7 +445,7 @@ func StoreTxByHash(client ethclient.Client, hash common.Hash) *Models.Transactio
 	}else{
 		fmt.Println("There is something wrong, Please try later!")
 	}
-	return nil
+	return nftActions
 }
 
 // TransferEth from one account to another
